@@ -45,10 +45,8 @@ echo $NEW_BACKUP
 #Mount the files in unix system
 # mount -t cifs -o username=xxxxx,password=xxxxx,ro //xxxxxxx/d$ /mnt
 #Copy all files from $FILES to $NEW_BACKUP. Do a Hard link with files in lik-dest
-rsync -azvh --progress --exclude='System Volume Information' --link-dest=$LAST_BACKUP $FILES $NEW_BACKUP
-rm -rf $LAST_BACKUP
 #Create as symbolic link of the newest backup as last-backup
-ln -s $NEW_BACKUP $LAST_BACKUP
+rsync -azvh --progress --exclude='System Volume Information' --link-dest=$LAST_BACKUP $FILES $NEW_BACKUP && rm -rf $LAST_BACKUP && ln -s $NEW_BACKUP $LAST_BACKUP && echo "Backup Done"
 NUMBER_OF_BACKUPS=`find $BACKUP_FOLDER -maxdepth 1  |grep -P "BACKUP-[A-Z,a-z,0-9,:,-]*[0-9]$" | wc -l`
 
 if ((NUMBER_OF_BACKUPS > MAX_DAILY_BACKUPS)); then
@@ -58,7 +56,7 @@ fi
 
 
 #Weekly Backups
-CONDITION=`date "+%u"`==WEEKLY_BACKUP_DAY
+CONDITION=`date "+%u"`==WEEKLY_BABCKUP_DAY
 ((DELTA_SEC=3600*24*8))
 backup_function W $MAX_WEEKLY_BACKUPS $CONDITION $DELTA_SEC
 

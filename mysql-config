@@ -1,0 +1,14 @@
+CREATE database Polimet; #Creates Database
+USE Polimet;
+
+CREATE TABLE servers (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, name VARCHAR(25), IP VARCHAR(15)); #Create Tables
+CREATE TABLE uptimes (server_ID MEDIUMINT(8) UNSIGNED, status ENUM('online','offline'),  timestamp TIMESTAMP); #Create Tables
+
+CREATE USER 'dummy'@'localhost'; #Create dummy user
+#Grants privilege to dummy user
+GRANT SELECT ON Polimet.servers TO 'dummy'@'localhost';
+GRANT INSERT ON Polimet.uptimes TO 'dummy'@'localhost';
+
+#Add two IPs to Table
+INSERT INTO servers VALUES(NULL,"Polimet-BRConecta","177.105.115.178");
+INSERT INTO servers VALUES(NULL,"Polimet-Fasternet","200.187.95.213");

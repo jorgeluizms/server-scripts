@@ -1,4 +1,6 @@
 #!/bin/sh
+FOLDER=/home/more_jo/devel/server-scripts
+cd $FOLDER
 #Build list of servers to be read
 echo "SELECT IP, id from servers ;" | mysql -u dummy Polimet| sed -n '1!p'>servers.txt
 #Automatically computes ping for each server in servers.txt

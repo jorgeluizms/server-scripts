@@ -34,19 +34,48 @@ YEARLY_BACKUP_DAY=5 #Month is January and the day is defined here
 BACKUP_FOLDER=/Backup
 
 #FILES="/mnt/MOTO /mnt/XML /mnt/ALMOXARIFADO /mnt/QUALIDADE /mnt/CONTABILIDADE"
-FILES="/mnt/*"
 LAST_BACKUP=$BACKUP_FOLDER/BACKUP_LAST
 #Get date for naming backup folder
 DATA=`date "+%y-%m-%d--%H:%M"`
 DATE_SEC=`date "+%s"`
 NEW_BACKUP=$BACKUP_FOLDER/"BACKUP-$DATA"
-
+mkdir $NEW_BACKUP
 echo $NEW_BACKUP
 #Mount the files in unix system
-# mount -t cifs -o username=xxxxx,password=xxxxx,ro //xxxxxxx/d$ /mnt
+#sudo mount -t cifs -o username=xxxxxx,password=xxxxxx,ro,vers=2.0 '//xxxxxxxx' /mnt
 #Copy all files from $FILES to $NEW_BACKUP. Do a Hard link with files in lik-dest
 #Create as symbolic link of the newest backup as last-backup
-rsync -azvh --progress --exclude='System Volume Information' --link-dest=$LAST_BACKUP $FILES $NEW_BACKUP && rm -rf $LAST_BACKUP && ln -s $NEW_BACKUP $LAST_BACKUP && echo "Backup Done"
+
+#Read all backups to be made
+cat backup_input   | sed '/^#/ d'| sed '/^$/d' | while IFS=';' read -r NAME FOLDER_SOURCE FOLDER_DEST_OLD FOLDER_DEST_NEW OPTIONS CMD REMAINDER
+do
+#Create Dir
+mkdir -p "$NEW_BACKUP$FOLDER_DEST_NEW"
+
+if [[ "$CMD" == "rsync" ]]; then #Execute rsync
+	eval OPTIONS=($OPTIONS)
+#Concateanate Command and Options
+cmd=(rsync -azvh --progress "${OPTIONS[@]}" --link-dest="$LAST_BACKUP$FOLDER_DEST_OLD" "$FOLDER_SOURCE" "$NEW_BACKUP$FOLDER_DEST_NEW")
+
+if [ $? -eq 0 ]; then
+echo "SUCCESS: "$(date)" ${NAME}" >>backup_log
+fi
+#Execute Command
+"${cmd[@]}"
+elif [[ "$CMD" == "cp" ]]; then #Execute Compact
+echo "SUCCESS: cp"
+NUMBER_FILES=$(find "$FOLDER_SOURCE" -mtime -1 -type f | wc -l)
+if[[ $NUMBER_FILES == 1 ]]; then
+FILE=$(find "$FOLDER_SOURCE" -mtime -1 -type f | sort -k1.1n  --reverse |head -1)
+echo "$FILE"
+time lzip -kv "$FILE"
+mv "$FILE.lz" "$NEW_BACKUP$FOLDER_DEST_NEW/$NAME.lz"
+#else
+#echo "FILE NOT FOUND - ERROR"
+$fi
+
+fi
+done
 NUMBER_OF_BACKUPS=`find $BACKUP_FOLDER -maxdepth 1  |grep -P "BACKUP-[A-Z,a-z,0-9,:,-]*[0-9]$" | wc -l`
 
 if ((NUMBER_OF_BACKUPS > MAX_DAILY_BACKUPS)); then
@@ -54,9 +83,11 @@ if ((NUMBER_OF_BACKUPS > MAX_DAILY_BACKUPS)); then
 	find $BACKUP_FOLDER -maxdepth 1  |grep -P "BACKUP-[A-Z,a-z,0-9,:,-]*[0-9]$" | sort -d| head -1 | xargs rm -rf
 fi
 
+rm -rf $LAST_BACKUP
+ln -s $NEW_BACKUP $LAST_BACKUP #It is done even when there are errors
 
 #Weekly Backups
-CONDITION=`date "+%u"`==WEEKLY_BABCKUP_DAY
+CONDITION=`date "+%u"`==WEEKLY_BACKUP_DAY
 ((DELTA_SEC=3600*24*8))
 backup_function W $MAX_WEEKLY_BACKUPS $CONDITION $DELTA_SEC
 

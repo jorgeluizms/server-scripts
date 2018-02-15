@@ -83,7 +83,7 @@ if [[ "$CMD" == "rsync" ]]; then
 ####compact and cp case####
 elif [[ "$CMD" == "cp" ]]; then
 	NUMBER_FILES=$(find "$FOLDER_SOURCE" -mtime -1 -type f | wc -l)
-	if (( "$NUMBER_FILES" >= 1 )); then if there are recent files to be copied.
+	if (( "$NUMBER_FILES" >= 1 )); then #if there are recent files to be copied.
 		FILE=$(find "$FOLDER_SOURCE" -mtime -1 -type f | sort -k1.1n  --reverse |head -1)
 		echo "File to be copied: $FILE".
 		time lzip -kv "$FILE"

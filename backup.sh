@@ -34,10 +34,10 @@ backup_function() {
 START_SEC=`date "+%s"`
 echo "Inicio: `date`"
 #Configuration
-MAX_DAILY_BACKUPS=5
-MAX_WEEKLY_BACKUPS=3
-MAX_MONTHLY_BACKUPS=3
-MAX_YEARLY_BACKUPS=1
+MAX_DAILY_BACKUPS=7
+MAX_WEEKLY_BACKUPS=5
+MAX_MONTHLY_BACKUPS=4
+MAX_YEARLY_BACKUPS=2
 echo "\n\n~~~~~$(date)~~~~~\n">>backup_log
 
 WEEKLY_BACKUP_DAY=6 #1 is Monday. Therefore six is Saturday.
@@ -70,7 +70,8 @@ mkdir -p "$NEW_BACKUP$FOLDER_DEST_NEW"
 if [[ "$CMD" == "rsync" ]]; then
 	eval OPTIONS=($OPTIONS)
 	#Concateanate Command, options and, then, execute it.
-	cmd=(rsync -azvh --progress "${OPTIONS[@]}" --link-dest="$LAST_BACKUP$FOLDER_DEST_OLD" "$FOLDER_SOURCE" "$NEW_BACKUP$FOLDER_DEST_NEW")
+	#cmd=(rsync -azvh --progress "${OPTIONS[@]}" --link-dest="$LAST_BACKUP$FOLDER_DEST_OLD" "$FOLDER_SOURCE" "$NEW_BACKUP$FOLDER_DEST_NEW")
+	cmd=(rsync -azvh --chmod=755 --progress "${OPTIONS[@]}" --link-dest="$LAST_BACKUP$FOLDER_DEST_OLD" "$FOLDER_SOURCE" "$NEW_BACKUP$FOLDER_DEST_NEW")
 	"${cmd[@]}"
 
 	#logging
@@ -82,9 +83,10 @@ if [[ "$CMD" == "rsync" ]]; then
 
 ####compact and cp case####
 elif [[ "$CMD" == "cp" ]]; then
-	NUMBER_FILES=$(find "$FOLDER_SOURCE" -mtime -1 -type f | wc -l)
-	if (( "$NUMBER_FILES" >= 1 )); then #if there are recent files to be copied.
-		FILE=$(find "$FOLDER_SOURCE" -mtime -1 -type f | sort -k1.1n  --reverse |head -1)
+        BACKUP_DATE=$(($(stat "$LAST_BACKUP$FOLDER_DEST_NEW/$NAME.lz" -c %Y)/60)) #in minutes
+        FILE_DATE=$(($(stat $(find "$FOLDER_SOURCE" -type f | sort -k1.1n  --reverse |head -1) -c %Y)/60))
+        if (( "$FILE_DATE" > "$BACKUP_DATE" )); then
+		FILE=$(find "$FOLDER_SOURCE" -type f | sort -k1.1n  --reverse |head -1)
 		echo "File to be copied: $FILE".
 		time lzip -kv "$FILE"
 
@@ -101,9 +103,8 @@ elif [[ "$CMD" == "cp" ]]; then
 		else
 			echo "$(date +%H:%M) Fail: ${NAME}.lz was not copied to backup." >>backup_log
 		fi
-
-	else #if no recent file was found
-		echo "$(date +%H:%M) Warning: Daily version of ${NAME}.lz not found." >>backup_log
+        else
+		echo "$(date +%H:%M) Warning: A more recent version of ${NAME}.lz not found." >>backup_log
 		cp -l "$LAST_BACKUP$FOLDER_DEST_NEW/$NAME.lz" "$NEW_BACKUP$FOLDER_DEST_NEW/$NAME.lz"
 		#logging
 		if [ $? -eq 0 ]; then
@@ -111,7 +112,10 @@ elif [[ "$CMD" == "cp" ]]; then
 		else
 			echo "$(date +%H:%M) Fail: ${NAME}.lz was not copied to backup." >>backup_log
 		fi
-
+        fi
+        NUMBER_FILES=$(find "$FOLDER_SOURCE" -mtime -1 -type f | wc -l) #Check for daily files
+	if (( "$NUMBER_FILES" == 0 )); then #if there are recent files to be copied.
+            echo "$(date +%H:%M) Warning: Daily version of ${NAME}.lz not found." >>backup_log
 	fi
 
 fi

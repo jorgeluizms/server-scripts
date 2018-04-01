@@ -83,9 +83,16 @@ if [[ "$CMD" == "rsync" ]]; then
 
 ####compact and cp case####
 elif [[ "$CMD" == "cp" ]]; then
+        FILE_DOES_NOT_EXIST=1
+        if [ -f "$LAST_BACKUP$FOLDER_DEST_NEW/$NAME.lz" ]; then #file exists
         BACKUP_DATE=$(($(stat "$LAST_BACKUP$FOLDER_DEST_NEW/$NAME.lz" -c %Y)/60)) #in minutes
         FILE_DATE=$(($(stat $(find "$FOLDER_SOURCE" -type f | sort -k1.1n  --reverse |head -1) -c %Y)/60))
-        if (( "$FILE_DATE" > "$BACKUP_DATE" )); then
+        FILE_DOES_NOT_EXIST=0
+else
+FILE_DATE=0
+BACKUP_DATE=0
+fi
+        if ((("$FILE_DOES_NOT_EXIST" == 1)||("$FILE_DATE" > "$BACKUP_DATE"))); then
 		FILE=$(find "$FOLDER_SOURCE" -type f | sort -k1.1n  --reverse |head -1)
 		echo "File to be copied: $FILE".
 		time lzip -kv "$FILE"
@@ -150,8 +157,8 @@ backup_function M $MAX_MONTHLY_BACKUPS $CONDITION $DELTA_SEC
 
 ((DELTA_SEC=3600*24*367))
 #Yearly Backups
-CONDITION=`date "+%m"`==01"&&"`date "+%d"`==YEARLY_BACKUP_DAY
-backup_function Y $MAX_YEARLY_BACKUPS $CONDITION $DELTA_SEC
+CONDITION=`date "+%m"`==01" && "`date "+%d"`==$YEARLY_BACKUP_DAY
+backup_function Y "$MAX_YEARLY_BACKUPS" "$CONDITION" "$DELTA_SEC"
 
 END_SEC=`date "+%s"`
 echo "Fim: `date`"

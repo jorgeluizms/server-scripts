@@ -19,11 +19,12 @@ backup_function() {
 		#Delete if Number of number of $1 backups is greater than $2
 		if ((NUMBER_OF_BACKUPS >= $2)); then
 			FILE=$(find $BACKUP_FOLDER -maxdepth 1  |grep -P "BACKUP-[A-Z,a-z,0-9,:,-]*[0-9]"$1"$" | sort -d| head -1) #Find oldest backup
+                        rm -rf $FILE
 			#logging
 			if [ $? -eq 0 ]; then
 				echo "$(date +%H:%M) Success: Number of $1 backups exceeded. $FILE deleted." >>backup_log
 			else
-				echo "$(date +%H:%M) Success: Number of $1 backups exceeded. $FILE could not be deleted." >>backup_log
+				echo "$(date +%H:%M) FAIL: Number of $1 backups exceeded. $FILE could not be deleted." >>backup_log
 			fi
 
 		fi
@@ -61,14 +62,15 @@ echo $NEW_BACKUP
 #Create as symbolic link of the newest backup as last-backup
 
 #Read all backups to be made
-cat backup_input   | sed '/^#/ d'| sed '/^$/d' | while IFS=';' read -r NAME FOLDER_SOURCE FOLDER_DEST_OLD FOLDER_DEST_NEW OPTIONS CMD REMAINDER
+cat /home/more_jo/backup_input   | sed '/^#/ d'| sed '/^$/d' | while IFS=';' read -r NAME FOLDER_SOURCE FOLDER_DEST_OLD FOLDER_DEST_NEW OPTIONS CMD REMAINDER
 do
 #Create backup Dir
 mkdir -p "$NEW_BACKUP$FOLDER_DEST_NEW"
 
 ####rsync case####
+echo $OPTIONS
 if [[ "$CMD" == "rsync" ]]; then
-	eval OPTIONS=($OPTIONS)
+	eval "OPTIONS=($OPTIONS)"
 	#Concateanate Command, options and, then, execute it.
 	#cmd=(rsync -azvh --progress "${OPTIONS[@]}" --link-dest="$LAST_BACKUP$FOLDER_DEST_OLD" "$FOLDER_SOURCE" "$NEW_BACKUP$FOLDER_DEST_NEW")
 	cmd=(rsync -azvh --chmod=755 --progress "${OPTIONS[@]}" --link-dest="$LAST_BACKUP$FOLDER_DEST_OLD" "$FOLDER_SOURCE" "$NEW_BACKUP$FOLDER_DEST_NEW")

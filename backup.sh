@@ -46,10 +46,9 @@ MONTHLY_BACKUP_DAY=20 #
 YEARLY_BACKUP_DAY=5 #Month is January and the day is defined here
 
 #Declare all required variables
-BACKUP_FOLDER=/Backup
+BACKUP_FOLDER=/mnt/NAS/Backup-Jorge
 
-#FILES="/mnt/MOTO /mnt/XML /mnt/ALMOXARIFADO /mnt/QUALIDADE /mnt/CONTABILIDADE"
-LAST_BACKUP=$BACKUP_FOLDER/BACKUP_LAST
+LAST_BACKUP=$(find $BACKUP_FOLDER -maxdepth 1  |grep -P "BACKUP-[A-Z,a-z,0-9,:,-]*[0-9]$" | sort -dr | head -1)
 #Get date for naming backup folder
 DATA=`date "+%y-%m-%d--%H:%M"`
 DATE_SEC=`date "+%s"`
@@ -73,7 +72,7 @@ if [[ "$CMD" == "rsync" ]]; then
 	eval "OPTIONS=($OPTIONS)"
 	#Concateanate Command, options and, then, execute it.
 	#cmd=(rsync -azvh --progress "${OPTIONS[@]}" --link-dest="$LAST_BACKUP$FOLDER_DEST_OLD" "$FOLDER_SOURCE" "$NEW_BACKUP$FOLDER_DEST_NEW")
-	cmd=(rsync -azvh --chmod=755 --progress "${OPTIONS[@]}" --link-dest="$LAST_BACKUP$FOLDER_DEST_OLD" "$FOLDER_SOURCE" "$NEW_BACKUP$FOLDER_DEST_NEW")
+	cmd=(rsync -azvh --iconv=ISO-8859-1,utf-8 --chmod=755 --progress "${OPTIONS[@]}" --link-dest="$LAST_BACKUP$FOLDER_DEST_OLD" "$FOLDER_SOURCE" "$NEW_BACKUP$FOLDER_DEST_NEW")
 	"${cmd[@]}"
 
 	#logging
@@ -88,14 +87,16 @@ elif [[ "$CMD" == "cp" ]]; then
         FILE_DOES_NOT_EXIST=1
         if [ -f "$LAST_BACKUP$FOLDER_DEST_NEW/$NAME.lz" ]; then #file exists
         BACKUP_DATE=$(($(stat "$LAST_BACKUP$FOLDER_DEST_NEW/$NAME.lz" -c %Y)/60)) #in minutes
-        FILE_DATE=$(($(stat $(find "$FOLDER_SOURCE" -type f | sort -k1.1n  --reverse |head -1) -c %Y)/60))
+        FILE_DATE=$(($(stat $(find "$FOLDER_SOURCE" -type f -name "$NAME.*" | sort -k1.1n  |head -1) -c %Y)/60))
         FILE_DOES_NOT_EXIST=0
-else
-FILE_DATE=0
-BACKUP_DATE=0
-fi
+	else
+	FILE_DATE=0
+	BACKUP_DATE=0
+	fi
         if ((("$FILE_DOES_NOT_EXIST" == 1)||("$FILE_DATE" > "$BACKUP_DATE"))); then
-		FILE=$(find "$FOLDER_SOURCE" -type f | sort -k1.1n  --reverse |head -1)
+		echo $FOLDER_SOURCE
+		echo $NAME
+		FILE=$(find "$FOLDER_SOURCE" -type f -name "$NAME.*" | sort -k1.1n |head -1)
 		echo "File to be copied: $FILE".
 		time lzip -kv "$FILE"
 
@@ -139,13 +140,10 @@ if ((NUMBER_OF_BACKUPS > MAX_DAILY_BACKUPS)); then
 	if [ $? -eq 0 ]; then
 		echo "$(date +%H:%M) Success: Number of daily backups exceeded. $FILE deleted." >>backup_log
 	else
-		echo "$(date +%H:%M) Fail: Number of daily backups exceeded, but $FILE could not be deleted." >>backup_log
+		echo "$(date +%H:%M) FAIL: Number of daily backups exceeded, but $FILE could not be deleted." >>backup_log
 	fi
 
 fi
-
-rm -rf $LAST_BACKUP
-ln -s $NEW_BACKUP $LAST_BACKUP #It is done even when there are errors
 
 #Weekly Backups
 CONDITION=`date "+%u"`==WEEKLY_BACKUP_DAY
